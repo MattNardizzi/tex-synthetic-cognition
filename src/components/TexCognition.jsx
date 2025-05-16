@@ -2,10 +2,10 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
+import { getNeedPulse } from '../systems/needPulse';
 
 export default function TexCognition() {
   const mountRef = useRef(null);
-  const [pulse, setPulse] = useState(0);
   const [emotionColor, setEmotionColor] = useState(new THREE.Color('#6ed6ff'));
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function TexCognition() {
       uniforms: {
         time: { value: 0 },
         glowColor: { value: new THREE.Color(emotionColor) },
-        pulse: { value: pulse }
+        pulse: { value: 1.0 }
       },
       vertexShader: `
         uniform float time;
@@ -56,9 +56,9 @@ export default function TexCognition() {
       time += 0.015;
       material.uniforms.time.value = time;
 
-      // Gentle pulse mutation
-      const pulseValue = 1.0 + Math.sin(time * 0.5) * 0.25;
-      material.uniforms.pulse.value = pulseValue;
+      // 🔁 Connect pulse to internal synthetic need
+      const need = getNeedPulse();
+      material.uniforms.pulse.value = need;
 
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
