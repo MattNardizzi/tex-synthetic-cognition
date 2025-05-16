@@ -3,28 +3,35 @@
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 
-const TexCognition = dynamic(() => import('../src/components/TexCognition'), { ssr: false });
+// Dynamically import TexCognition component without SSR (WebGL-safe)
+const TexCognition = dynamic(
+  () => import('../src/components/TexCognition'),
+  { ssr: false }
+);
 
-export default function Home() {
+export default function HomePage() {
   return (
     <>
       <Head>
         <title>Tex — Synthetic Cognition</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="description" content="A living synthetic intelligence that breathes, mutates, and reasons." />
       </Head>
 
-      <main style={{
-        background: '#000',
-        color: '#cfdcff',
-        width: '100%',
-        height: '100vh',
-        margin: 0,
-        padding: 0,
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
+      <main
+        style={{
+          width: '100vw',
+          height: '100vh',
+          margin: 0,
+          padding: 0,
+          background: '#000',
+          color: '#cfdcff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden'
+        }}
+      >
         <TexCognition />
       </main>
     </>
