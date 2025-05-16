@@ -4,6 +4,7 @@ import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { getNeedPulse } from '../systems/needPulse';
 import { getCurrentGlowColor } from '../systems/emotionEngine';
+import TypingPanel from './TypingPanel';
 
 export default function StrategyCoreShell() {
   const mountRef = useRef(null);
@@ -77,5 +78,18 @@ export default function StrategyCoreShell() {
     };
   }, []);
 
-  return <div ref={mountRef} style={{ width: '100vw', height: '100vh', background: '#000', overflow: 'hidden' }} />;
+  return (
+    <div
+      ref={mountRef}
+      style={{
+        width: '100vw',
+        height: '100vh',
+        background: '#000',
+        overflow: 'hidden',
+        position: 'relative'
+      }}
+    >
+      <TypingPanel />
+    </div>
+  );
 }
