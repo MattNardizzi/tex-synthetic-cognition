@@ -1,0 +1,1 @@
+# tex-synthetic-cognition
