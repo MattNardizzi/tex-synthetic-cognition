@@ -2,8 +2,12 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
+
 import { getNeedPulse } from '../systems/needPulse';
 import { recordPulse, getCognitiveBias } from '../systems/memoryLoop';
+import { getCurrentEmotion, getCurrentGlowColor, getCurrentEmotionIntensity } from '../systems/emotionEngine';
+import { evaluateCognitiveState } from '../systems/selfMonitor';
+import TypingPanel from './TypingPanel';
 
 export default function TexCognition() {
   const mountRef = useRef(null);
@@ -49,36 +53,27 @@ export default function TexCognition() {
     const orb = new THREE.Mesh(geometry, material);
     scene.add(orb);
 
-    // Color States by Bias
-    const biasColors = {
-      assert: new THREE.Color('#ff568f'),    // bold magenta
-      hesitate: new THREE.Color('#6ec1ff'),  // pale blue
-      neutral: new THREE.Color('#6ed6ff')    // calm cyan
-    };
-
     let time = 0;
     const animate = () => {
       time += 0.015;
       material.uniforms.time.value = time;
 
-      // Get need and store in memory
       const need = getNeedPulse();
       recordPulse(need);
 
-      // Pull cognitive bias from memory
       const bias = getCognitiveBias();
-      const targetColor = biasColors[bias] || biasColors.neutral;
+      const cognitiveState = evaluateCognitiveState();
+      const glowColorHex = getCurrentGlowColor();
+      const targetColor = new THREE.Color(glowColorHex);
 
-      // Smoothly transition to bias color
       emotionColor.lerp(targetColor, 0.05);
       material.uniforms.glowColor.value.copy(emotionColor);
-
-      // Pulse based on need
       material.uniforms.pulse.value = need;
 
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
     };
+
     animate();
 
     return () => {
@@ -95,7 +90,10 @@ export default function TexCognition() {
         height: '100%',
         background: 'radial-gradient(circle at center, #05070a, #000)',
         overflow: 'hidden',
+        position: 'relative',
       }}
-    />
+    >
+      <TypingPanel />
+    </div>
   );
 }
