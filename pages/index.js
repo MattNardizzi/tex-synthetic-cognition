@@ -3,9 +3,9 @@
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 
-// Dynamically import TexCognition component without SSR (WebGL-safe)
-const TexCognition = dynamic(
-  () => import('../src/components/TexCognition'),
+// Dynamically import the Strategy Core Shell with no SSR (for WebGL safety)
+const StrategyCoreShell = dynamic(
+  () => import('../src/components/StrategyCoreShell'),
   { ssr: false }
 );
 
@@ -13,9 +13,9 @@ export default function HomePage() {
   return (
     <>
       <Head>
-        <title>Tex — Synthetic Cognition</title>
+        <title>Tex — Strategy Core Shell</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="description" content="A living synthetic intelligence that breathes, mutates, and reasons." />
+        <meta name="description" content="Tex is a strategic synthetic intelligence. Alive, evolving, and embedded with a synthetic need system." />
       </Head>
 
       <main
@@ -25,14 +25,13 @@ export default function HomePage() {
           margin: 0,
           padding: 0,
           background: '#000',
-          color: '#cfdcff',
+          overflow: 'hidden',
           display: 'flex',
-          alignItems: 'center',
           justifyContent: 'center',
-          overflow: 'hidden'
+          alignItems: 'center'
         }}
       >
-        <TexCognition />
+        <StrategyCoreShell />
       </main>
     </>
   );
