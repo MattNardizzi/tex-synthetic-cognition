@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { getNeedPulse } from '../systems/needPulse';
 import { getCurrentGlowColor } from '../systems/emotionEngine';
 import TypingPanel from './TypingPanel';
+import InstitutionalOverlay from './InstitutionalOverlay';
 
 export default function StrategyCoreShell() {
   const mountRef = useRef(null);
@@ -90,6 +91,7 @@ export default function StrategyCoreShell() {
       }}
     >
       <TypingPanel />
+      <InstitutionalOverlay />
     </div>
   );
 }
