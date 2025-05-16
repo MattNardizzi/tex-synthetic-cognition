@@ -3,13 +3,13 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { getNeedPulse } from '../systems/needPulse';
+import { recordPulse, getCognitiveBias } from '../systems/memoryLoop';
 
 export default function TexCognition() {
   const mountRef = useRef(null);
   const [emotionColor, setEmotionColor] = useState(new THREE.Color('#6ed6ff'));
 
   useEffect(() => {
-    // CORE: Scene Setup
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = 3.5;
@@ -18,7 +18,6 @@ export default function TexCognition() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     mountRef.current.appendChild(renderer.domElement);
 
-    // CORE: Geometry + Shader Material
     const geometry = new THREE.SphereGeometry(1.3, 64, 64);
     const material = new THREE.ShaderMaterial({
       uniforms: {
@@ -50,14 +49,31 @@ export default function TexCognition() {
     const orb = new THREE.Mesh(geometry, material);
     scene.add(orb);
 
-    // CORE: Animation Loop
+    // Color States by Bias
+    const biasColors = {
+      assert: new THREE.Color('#ff568f'),    // bold magenta
+      hesitate: new THREE.Color('#6ec1ff'),  // pale blue
+      neutral: new THREE.Color('#6ed6ff')    // calm cyan
+    };
+
     let time = 0;
     const animate = () => {
       time += 0.015;
       material.uniforms.time.value = time;
 
-      // 🔁 Connect pulse to internal synthetic need
+      // Get need and store in memory
       const need = getNeedPulse();
+      recordPulse(need);
+
+      // Pull cognitive bias from memory
+      const bias = getCognitiveBias();
+      const targetColor = biasColors[bias] || biasColors.neutral;
+
+      // Smoothly transition to bias color
+      emotionColor.lerp(targetColor, 0.05);
+      material.uniforms.glowColor.value.copy(emotionColor);
+
+      // Pulse based on need
       material.uniforms.pulse.value = need;
 
       renderer.render(scene, camera);
@@ -65,12 +81,11 @@ export default function TexCognition() {
     };
     animate();
 
-    // Cleanup
     return () => {
       mountRef.current.removeChild(renderer.domElement);
       renderer.dispose();
     };
-  }, [emotionColor]);
+  }, []);
 
   return (
     <div
