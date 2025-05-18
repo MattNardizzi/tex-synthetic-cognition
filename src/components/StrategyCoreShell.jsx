@@ -16,6 +16,7 @@ import { BokehPass }       from "three/examples/jsm/postprocessing/BokehPass";
 import { Lensflare, LensflareElement } from "three/examples/jsm/objects/Lensflare";
 import { createNoise2D }   from "simplex-noise";
 import * as Tone           from "tone";
+import Beam from '@/components/ui/Beam';
 
 import { getNeedPulse }            from "../systems/needPulse";
 import {
@@ -226,7 +227,7 @@ export default function StrategyCoreShell() {
       <div className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2">
         <GazeEyes />
       </div>
-
+    <Beam className="w-px h-full" />
       <TypingPanel />
       <InstitutionalOverlay />
 
