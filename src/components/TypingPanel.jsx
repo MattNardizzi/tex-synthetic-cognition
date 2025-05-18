@@ -1,13 +1,14 @@
-// src/components/TypingPanel.jsx
+// src/components/ui/TypingPanel.jsx
 
 import React, { useEffect, useState } from 'react';
-import { generateThought, getRecentThoughts } from '../systems/thoughtEngine';
-import { getCurrentEmotion, getCurrentEmotionIntensity } from '../systems/emotionEngine';
-import { getPersonaTraits } from '../systems/personaCore';
+import { generateThought, getRecentThoughts } from '../../systems/thoughtEngine';
+import { getCurrentEmotion, getCurrentEmotionIntensity } from '../../systems/emotionEngine';
+import { getPersonaTraits } from '../../systems/personaCore';
 
 export default function TypingPanel() {
   const [displayedThoughts, setDisplayedThoughts] = useState([]);
   const [input, setInput] = useState('');
+  const persona = getPersonaTraits();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -17,7 +18,11 @@ export default function TypingPanel() {
       if (intensity > 0.5) {
         const newThought = generateThought();
         setDisplayedThoughts(prev => {
-          const updated = [...prev, { source: 'Tex', text: newThought.text, meta: newThought.meta }];
+          const updated = [...prev, {
+            source: 'Tex',
+            text: newThought.text,
+            meta: newThought.meta || null
+          }];
           return updated.length > 8 ? updated.slice(-8) : updated;
         });
       }
@@ -25,8 +30,6 @@ export default function TypingPanel() {
 
     return () => clearInterval(interval);
   }, []);
-
-  const persona = getPersonaTraits();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,16 +40,24 @@ export default function TypingPanel() {
     setInput('');
 
     try {
-      const res = await fetch('https://your-backend-url.com/api/think', {
+      const res = await fetch('/api/tex', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: userText })
+        body: JSON.stringify({ prompt: userText })
       });
       const data = await res.json();
 
-      setDisplayedThoughts(prev => [...prev, { source: 'Tex', text: data.response }]);
+      setDisplayedThoughts(prev => [...prev, {
+        source: 'Tex',
+        text: data.reply || '...thinking...',
+        meta: null
+      }]);
     } catch (err) {
-      setDisplayedThoughts(prev => [...prev, { source: 'Tex', text: '⚠️ Connection error. Unable to think right now.' }]);
+      setDisplayedThoughts(prev => [...prev, {
+        source: 'Tex',
+        text: '⚠️ Connection error. Unable to think right now.',
+        meta: null
+      }]);
     }
   };
 
@@ -65,15 +76,20 @@ export default function TypingPanel() {
       boxShadow: '0 0 14px rgba(110, 214, 255, 0.2)',
       maxHeight: '35vh',
       overflowY: 'auto',
-      backdropFilter: 'blur(8px)'
+      backdropFilter: 'blur(8px)',
+      zIndex: 100
     }}>
-      <div style={{ fontSize: '0.85rem', opacity: 0.6, marginBottom: '8px' }}>
-        {persona.name} [{persona.tone} · {getCurrentEmotion()} · {getRecentThoughts().slice(-1)[0]?.state}]
+      <div style={{
+        fontSize: '0.85rem',
+        opacity: 0.6,
+        marginBottom: '8px'
+      }}>
+        {persona.name} [{persona.tone} · {getCurrentEmotion()} · {getRecentThoughts().slice(-1)[0]?.state || 'idle'}]
       </div>
-      
+
       {displayedThoughts.map((t, i) => (
         <div key={i} style={{ marginBottom: '6px', opacity: 0.95 }}>
-          <strong>{t.source}:</strong> {t.text} 
+          <strong>{t.source}:</strong> {t.text}
           {t.meta && <span style={{ opacity: 0.5 }}> ({t.meta})</span>}
         </div>
       ))}
