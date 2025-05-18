@@ -1,25 +1,27 @@
 // src/app/api/tex/route.js
 
-export async function GET() {
-  const fakeTexData = {
-    thought: "Monitoring global volatility signals...",
-    emotion: "composed",
-    pulse: 0.71,
-    strategy: "Reinforce long volatility hedge positions",
-    timestamp: new Date().toISOString(),
-  };
-
-  return new Response(JSON.stringify(fakeTexData), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
-
 export async function POST(request) {
   const { prompt = '' } = await request.json();
 
-  return new Response(
-    JSON.stringify({ reply: `Echo: ${prompt}` }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } }
-  );
+  try {
+    const res = await fetch('http://localhost:5001/think', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    const data = await res.json();
+
+    return new Response(JSON.stringify({ reply: data.response }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('🛑 Error contacting Tex brain:', error);
+    return new Response(JSON.stringify({ reply: '⚠️ Tex is currently offline.' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 }
