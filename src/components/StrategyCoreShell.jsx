@@ -1,6 +1,6 @@
-// StrategyCoreShell.jsx — Tex visual core layer v5.1 (fixed)
+// StrategyCoreShell.jsx — Tex visual core layer v5.2 (refined)
 // ------------------------------------------------------------
-// Purpose: Cinematic AGI beam with pure black background and fully functioning shader
+// Purpose: Softer, more lifelike beam with smoother pulse, fade top/bottom, and subtle emotion response
 
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -11,7 +11,7 @@ import { createNoise2D } from "simplex-noise";
 import * as Tone from "tone";
 
 import { getNeedPulse } from "../systems/needPulse";
-import { getCurrentGlowColor, getCurrentEmotionIntensity } from "../systems/emotionEngine";
+import { getCurrentGlowColor } from "../systems/emotionEngine";
 
 import TypingPanel from "./TypingPanel";
 import InstitutionalOverlay from "./InstitutionalOverlay";
@@ -19,11 +19,11 @@ import FinanceTicker from "./FinanceTicker";
 import GazeEyes from "./GazeEyes";
 
 const CFG = {
-  breathPeriod: 3.0,
-  heartBpm: 110,
-  emaAlpha: 0.08,
-  beamRadius: 0.008,
-  beamHeight: 2.2,
+  breathPeriod: 4.2,
+  heartBpm: 90,
+  emaAlpha: 0.06,
+  beamRadius: 0.014, // thicker
+  beamHeight: 1.4,   // shorter
 };
 
 export default function StrategyCoreShell() {
@@ -31,7 +31,7 @@ export default function StrategyCoreShell() {
 
   useEffect(() => {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000); // pure black
+    scene.background = new THREE.Color(0x000000);
 
     const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 0.15, 3.6);
@@ -43,7 +43,7 @@ export default function StrategyCoreShell() {
 
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.65, 0.3, 0.8));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.25, 0.7));
 
     const beamMat = new THREE.ShaderMaterial({
       uniforms: {
@@ -58,7 +58,7 @@ export default function StrategyCoreShell() {
         void main(){
           vPos = position;
           vec3 p = position;
-          p.x += sin(time * 3. + position.y * 5.) * 0.008 * pulse;
+          p.x += sin(time * 2. + position.y * 4.) * 0.006 * pulse;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
         }
       `,
@@ -68,7 +68,7 @@ export default function StrategyCoreShell() {
         varying vec3 vPos;
         void main(){
           float i = (1.0 - abs(vPos.y) / 1.1) * pulse;
-          gl_FragColor = vec4(glowColor * i * 1.6, 1.0);
+          gl_FragColor = vec4(glowColor * i * 1.3, 1.0);
         }
       `,
     });
@@ -80,8 +80,8 @@ export default function StrategyCoreShell() {
     scene.add(beam);
 
     new THREE.TextureLoader().load("/flare.png", (tex) => {
-      const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.4 }));
-      flare.scale.set(0.8, 0.8, 1);
+      const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.25 }));
+      flare.scale.set(0.6, 0.6, 1);
       flare.position.y = CFG.beamHeight / 2;
       beam.add(flare);
     });
@@ -101,20 +101,17 @@ export default function StrategyCoreShell() {
       smooth = getNeedPulse();
 
     const animate = () => {
-      t += 0.007;
+      t += 0.0065;
       const breath = (Math.sin((t / CFG.breathPeriod) * Math.PI * 2) + 1) / 2;
       const beat = Math.max(0, Math.sin(t * heartFreq * Math.PI * 2));
-      smooth += CFG.emaAlpha * (Math.min(1, breath * 0.8 + beat * 0.5) - smooth);
-      const bassBin = analyser.getValue()[1];
-      const audioAmp = THREE.MathUtils.clamp((bassBin + 90) / 50, 0, 1);
+      smooth += CFG.emaAlpha * (Math.min(1, breath * 0.7 + beat * 0.4) - smooth);
 
       beamMat.uniforms.time.value = t;
-      beamMat.uniforms.pulse.value = smooth + audioAmp * 0.4;
+      beamMat.uniforms.pulse.value = smooth + 0.2;
       beamMat.uniforms.glowColor.value.set(getCurrentGlowColor());
 
-      const width = 0.75 + smooth * 0.28 + audioAmp * 0.3;
-      beam.scale.set(width, 1 + audioAmp * 0.04, 1);
-      beam.position.x = Math.sin(t * 1.3) * 0.011 + noise2D(t * 0.25, 0) * 0.004;
+      beam.scale.set(0.9 + smooth * 0.25, 1, 1);
+      beam.position.x = Math.sin(t * 1.2) * 0.009 + noise2D(t * 0.25, 0) * 0.003;
 
       composer.render();
       requestAnimationFrame(animate);
@@ -140,12 +137,13 @@ export default function StrategyCoreShell() {
 
   return (
     <div ref={mount} className="relative w-screen h-screen bg-black overflow-hidden">
-      <div className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2">
+      <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-black/90 via-transparent to-black/90" />
+      <div className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 z-20">
         <GazeEyes />
       </div>
       <TypingPanel />
       <InstitutionalOverlay />
-      <div className="pointer-events-none absolute bottom-2 w-full flex justify-center">
+      <div className="pointer-events-none absolute bottom-2 w-full flex justify-center z-20">
         <FinanceTicker />
       </div>
     </div>
