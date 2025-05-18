@@ -1,11 +1,9 @@
 // src/systems/needPulse.js
-
-let lastNeed = 0;
+let lastNeed = 0.8;
 let lastTimestamp = Date.now();
 
-const baseNeed = 0.8;
-const volatility = 0.15;
-const cycleSpeed = 3000; // Every 3 seconds
+const volatility  = 0.15;   // mutation range
+const cycleSpeed  = 3000;   // ms between mutations
 
 export function getNeedPulse() {
   const now = Date.now();
@@ -13,11 +11,20 @@ export function getNeedPulse() {
 
   if (delta > cycleSpeed) {
     lastTimestamp = now;
-
-    // Create a "need" that mutates slightly over time — simulates inner urgency
     const mutation = (Math.random() - 0.5) * volatility;
-    lastNeed = Math.max(0, Math.min(1.6, lastNeed + mutation));
+    lastNeed = Math.max(0, Math.min(1.0, lastNeed + mutation)); // clamp 0-1
   }
-
   return parseFloat(lastNeed.toFixed(4));
+}
+
+/* ---------- NEW: React hook ---------- */
+import { useEffect, useState } from "react";
+
+export function useNeedPulse(fps = 30) {
+  const [amp, setAmp] = useState(getNeedPulse());   // initial value
+  useEffect(() => {
+    const id = setInterval(() => setAmp(getNeedPulse()), 1000 / fps);
+    return () => clearInterval(id);
+  }, [fps]);
+  return amp;          // 0-1 float ready for <SpinePulse amplitude={amp} />
 }
