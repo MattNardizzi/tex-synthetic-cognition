@@ -1,32 +1,39 @@
 // src/components/StrategyCoreShell.jsx
+import React, { useRef, useEffect } from "react";
+import * as THREE from "three";
 
-import React, { useRef, useEffect } from 'react';
-import * as THREE from 'three';
-import { getNeedPulse } from '../systems/needPulse';
-import { getCurrentGlowColor } from '../systems/emotionEngine';
-import TypingPanel from './TypingPanel';
-import InstitutionalOverlay from './InstitutionalOverlay';
+import { getNeedPulse } from "../systems/needPulse";
+import { getCurrentGlowColor } from "../systems/emotionEngine";
+
+import TypingPanel from "./TypingPanel";
+import InstitutionalOverlay from "./InstitutionalOverlay";
+import GazeEyes from "./GazeEyes";               // 👀 NEW
 
 export default function StrategyCoreShell() {
   const mountRef = useRef(null);
 
+  /* ---------- Three-JS scene ---------- */
   useEffect(() => {
-    // Scene Setup
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const scene    = new THREE.Scene();
+    const camera   = new THREE.PerspectiveCamera(
+      60,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
     camera.position.z = 5;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     mountRef.current.appendChild(renderer.domElement);
 
-    // Geometry: Vertical Pulse Beam
+    /* --- vertical pulse beam --- */
     const geometry = new THREE.CylinderGeometry(0.02, 0.02, 3, 32);
     const material = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
-        glowColor: { value: new THREE.Color('#6ed6ff') },
-        pulse: { value: 1.0 }
+        glowColor: { value: new THREE.Color("#6ed6ff") },
+        pulse: { value: 1.0 },
       },
       vertexShader: `
         uniform float time;
@@ -47,49 +54,72 @@ export default function StrategyCoreShell() {
           gl_FragColor = vec4(glowColor * intensity, 1.0);
         }
       `,
-      transparent: true
+      transparent: true,
     });
-
     const beam = new THREE.Mesh(geometry, material);
     scene.add(beam);
 
-    // Light fog background
-    const fogGeometry = new THREE.PlaneGeometry(10, 10);
-    const fogMaterial = new THREE.MeshBasicMaterial({ color: 0x0b0e1a, transparent: true, opacity: 0.05 });
-    const fog = new THREE.Mesh(fogGeometry, fogMaterial);
+    /* --- subtle fog plane --- */
+    const fog = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 10),
+      new THREE.MeshBasicMaterial({ color: 0x0b0e1a, transparent: true, opacity: 0.05 })
+    );
     fog.position.z = -2;
     scene.add(fog);
 
-    // Animate
-    let time = 0;
+    /* --- main loop --- */
+    let t = 0;
     const animate = () => {
-      time += 0.01;
-      material.uniforms.time.value = time;
+      t += 0.01;
+      material.uniforms.time.value  = t;
       material.uniforms.pulse.value = getNeedPulse();
       material.uniforms.glowColor.value.set(getCurrentGlowColor());
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
     };
-
     animate();
 
+    /* --- resize handler --- */
+    const onResize = () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    };
+    window.addEventListener("resize", onResize);
+
     return () => {
+      window.removeEventListener("resize", onResize);
       mountRef.current.removeChild(renderer.domElement);
       renderer.dispose();
     };
   }, []);
 
+  /* ---------- JSX shell ---------- */
   return (
     <div
       ref={mountRef}
       style={{
-        width: '100vw',
-        height: '100vh',
-        background: '#000',
-        overflow: 'hidden',
-        position: 'relative'
+        width: "100vw",
+        height: "100vh",
+        background: "#000",
+        overflow: "hidden",
+        position: "relative",
       }}
     >
+      {/* 👀 Eyes overlay – no pointer events so clicks pass through */}
+      <div
+        style={{
+          position: "absolute",
+          top: 16,
+          left: "50%",
+          transform: "translateX(-50%)",
+          pointerEvents: "none",
+        }}
+      >
+        <GazeEyes />
+      </div>
+
+      {/* Operator UI layers */}
       <TypingPanel />
       <InstitutionalOverlay />
     </div>
