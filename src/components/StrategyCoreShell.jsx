@@ -1,7 +1,6 @@
-// StrategyCoreShell.jsx — Tex visual core layer (refined v4.0)
+// StrategyCoreShell.jsx — Tex visual core layer v5.0
 // ------------------------------------------------------------
-// Purpose: Clean, cinematic cognitive beam representing Tex's synthetic spine
-// Assets: flare.png, heartbeat.wav in /public
+// Purpose: Cinematic AGI beam with perfect-black background and live emotion pulse
 
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -32,12 +31,12 @@ export default function StrategyCoreShell() {
 
   useEffect(() => {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0b0b0c); // mind-chamber black
+    scene.background = new THREE.Color(0x000000); // pure black
 
     const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 0.15, 3.6);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     mount.current.appendChild(renderer.domElement);
@@ -69,7 +68,7 @@ export default function StrategyCoreShell() {
         varying vec3 vPos;
         void main(){
           float i = (1. - abs(vPos.y) / ${CFG.beamHeight / 2}.0) * pulse;
-          gl_FragColor = vec4(glowColor * i, 1.0);
+          gl_FragColor = vec4(glowColor * i * 1.6, 1.0); // boosted intensity
         }
       `,
     });
