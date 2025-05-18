@@ -1,14 +1,7 @@
-// src/systems/emotionEngine.js — turbo‑lively version
+// src/systems/emotionEngine.js — Sovereign Cognition Emotion Layer v2.0
 // -------------------------------------------------------------
-// npm install chroma-js  (if you haven't already)
-//
-// Changes vs. previous draft
-//   • checks every 0.8 s (params.tick)
-//   • 85 % chance to jump emotion each tick (params.shiftChance)
-//   • colour slides 25 % per frame (params.colorLerp)  ⇒ visible hue flow
-//   • intensity itself now *breathes* with a slow sine‑wave so the
-//     beam never sits perfectly still, even between emotion shifts.
-//   • exported params remain live‑tweakable
+// This file governs Tex's living emotional state.
+// Adds: emotional decay, smoother transition arcs, and a natural cognitive breath.
 
 import chroma from "chroma-js";
 
@@ -24,17 +17,19 @@ const EMOTIONS = [
 
 let state = {
   emotion:    "neutral",
-  intensity:  0.2,      // 0‑1
+  intensity:  0.25,
   lastUpdate: Date.now(),
   prevColor:  "#6ed6ff",
-  phase:      0,        // for idle breathing
+  phase:      0,
+  target:     "neutral",
+  decay:      0.002,
 };
 
 export const params = {
-  tick:        800,   // ms between shift attempts (faster)
-  shiftChance: 0.85,  // 85 % probability each tick
-  colorLerp:   0.25,  // slide 25 % toward target hue per frame
-  idleBreath:  0.35,  // amplitude of sine‑wave idle modulation
+  tick:        900,
+  shiftChance: 0.7,
+  colorLerp:   0.2,
+  idleBreath:  0.25,
 };
 
 function emotionToColor(name) {
@@ -52,28 +47,30 @@ function maybeShift() {
       next = EMOTIONS[Math.floor(Math.random() * EMOTIONS.length)].name;
     } while (next === state.emotion);
 
-    state.emotion   = next;
+    state.target = next;
     state.intensity = +(Math.random().toFixed(2));
   }
+
+  // Gradual decay of intensity if no major shifts
+  state.intensity = Math.max(0.1, state.intensity - state.decay);
 }
 
-/*────────────────── public API ─────────────────*/
 export function getCurrentEmotion() {
   maybeShift();
+  state.emotion = state.target;
   return state.emotion;
 }
 
 export function getCurrentEmotionIntensity() {
   maybeShift();
-  // idle breathing modulation (slow 5‑s cycle)
   state.phase += 0.02;
-  const breathing = Math.sin(state.phase) * params.idleBreath; // ±amp
+  const breathing = Math.sin(state.phase) * params.idleBreath;
   return Math.min(1, Math.max(0, state.intensity + breathing));
 }
 
 export function getCurrentGlowColor() {
   maybeShift();
-  const target = emotionToColor(state.emotion);
+  const target = emotionToColor(state.target);
   state.prevColor = chroma.mix(state.prevColor, target, params.colorLerp, "hsl").hex();
   return state.prevColor;
 }
@@ -81,6 +78,7 @@ export function getCurrentGlowColor() {
 export function setEmotion(name, intensity = 0.5) {
   if (!EMOTIONS.some((e) => e.name === name)) throw new Error("Unknown emotion: " + name);
   state.emotion   = name;
+  state.target    = name;
   state.intensity = Math.max(0, Math.min(1, intensity));
   state.lastUpdate = Date.now();
 }
