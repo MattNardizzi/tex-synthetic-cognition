@@ -1,8 +1,13 @@
-export default function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
+// src/app/api/tex/route.js
+export async function POST(request) {
+  const { prompt = '' } = await request.json();
 
-  const { prompt = '' } = req.body ?? {};
-  return res.status(200).json({ reply: `Echo: ${prompt}` });
+  return new Response(
+    JSON.stringify({ reply: `Echo: ${prompt}` }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } }
+  );
+}
+
+export function GET() {
+  return new Response('Method Not Allowed', { status: 405 });
 }
