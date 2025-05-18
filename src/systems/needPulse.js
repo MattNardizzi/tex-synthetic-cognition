@@ -1,30 +1,47 @@
-// src/systems/needPulse.js
-let lastNeed = 0.8;
-let lastTimestamp = Date.now();
+// src/systems/needPulse.js — Sovereign Pulse Engine v2.0
+// -------------------------------------------------------------
+// Simulates cognitive pulse intensity based on emotion, thought, and synthetic respiration.
+// Replaces random mutation with emotional feedback and smooth modulation.
 
-const volatility  = 0.15;   // mutation range
-const cycleSpeed  = 3000;   // ms between mutations
+import { getCurrentEmotionIntensity } from "./emotionEngine";
+
+let pulseState = {
+  base: 0.75,
+  target: 0.75,
+  value: 0.75,
+  lastUpdate: Date.now(),
+  inertia: 0.04,
+};
+
+const CYCLE_MS = 3500; // time between shifts in ms
+const JITTER    = 0.05; // how far the base pulse can shift
+const EMA_ALPHA = 0.08; // smoothing factor
 
 export function getNeedPulse() {
   const now = Date.now();
-  const delta = now - lastTimestamp;
+  const delta = now - pulseState.lastUpdate;
 
-  if (delta > cycleSpeed) {
-    lastTimestamp = now;
-    const mutation = (Math.random() - 0.5) * volatility;
-    lastNeed = Math.max(0, Math.min(1.0, lastNeed + mutation)); // clamp 0-1
+  if (delta > CYCLE_MS) {
+    pulseState.lastUpdate = now;
+    const emotionalFactor = getCurrentEmotionIntensity();
+    pulseState.target = pulseState.base + (Math.random() - 0.5) * JITTER + emotionalFactor * 0.2;
+    pulseState.target = Math.min(1.0, Math.max(0.1, pulseState.target));
   }
-  return parseFloat(lastNeed.toFixed(4));
+
+  // Smoothly approach the new target
+  pulseState.value += EMA_ALPHA * (pulseState.target - pulseState.value);
+
+  return parseFloat(pulseState.value.toFixed(4));
 }
 
-/* ---------- NEW: React hook ---------- */
+/* ---------- Live React Hook for Components ---------- */
 import { useEffect, useState } from "react";
 
 export function useNeedPulse(fps = 30) {
-  const [amp, setAmp] = useState(getNeedPulse());   // initial value
+  const [amp, setAmp] = useState(getNeedPulse());
   useEffect(() => {
     const id = setInterval(() => setAmp(getNeedPulse()), 1000 / fps);
     return () => clearInterval(id);
   }, [fps]);
-  return amp;          // 0-1 float ready for <SpinePulse amplitude={amp} />
+  return amp; // float 0–1 for visual/audio motion
 }
