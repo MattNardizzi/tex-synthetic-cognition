@@ -3,9 +3,6 @@
 /**
  * Simple Card component family (Card, CardHeader, CardContent, CardFooter)
  * Tailwind‑friendly placeholders that unblock the build until shadcn / full UI kit is added.
- *
- * Usage:
- *   import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
  */
 
 export function Card({ className = '', children, ...props }) {
