@@ -1,130 +1,140 @@
-// src/components/StrategyCoreShell.jsx
+// src/components/StrategyCoreShell.jsx  –  cinematic spine w/ gaze-responsive bloom
+// -----------------------------------------------------------------------------
+// Requirements (already in repo after previous steps):
+//   npm install three simplex-noise chroma-js
+// -----------------------------------------------------------------------------
 import React, { useRef, useEffect } from "react";
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
-import { RenderPass }     from "three/examples/jsm/postprocessing/RenderPass";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
 import SimplexNoise from "simplex-noise";
 
-import { getNeedPulse }        from "../systems/needPulse";
-import { getCurrentGlowColor } from "../systems/emotionEngine";
+import { getNeedPulse } from "../systems/needPulse";
+import { getCurrentGlowColor, getCurrentEmotionIntensity } from "../systems/emotionEngine";
 
-import TypingPanel          from "./TypingPanel";
+import TypingPanel from "./TypingPanel";
 import InstitutionalOverlay from "./InstitutionalOverlay";
-import GazeEyes             from "./GazeEyes";      // 👀 pupils overlay
+import GazeEyes from "./GazeEyes";
+
+const BREATH_PERIOD = 3.5;                 // s (faster, cinematic)
+const HEART_BPM     = 110;                 // beats / min
+const HEART_FREQ    = HEART_BPM / 60;      // Hz
+const SMOOTH_ALPHA  = 0.08;                // EMA factor
 
 export default function StrategyCoreShell() {
   const mountRef = useRef(null);
 
   useEffect(() => {
-    /* ─── scene / camera ─────────────────────────────────────────── */
-    const scene  = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
-      60,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
+    // ─────────────────── scene bootstrap ──────────────────────
+    const scene   = new THREE.Scene();
+    const camera  = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = 5;
 
-    /* ─── renderer ──────────────────────────────────────────────── */
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     mountRef.current.appendChild(renderer.domElement);
 
-    /* ─── bloom composer (ghost-glow) ───────────────────────────── */
+    // Post-processing bloom
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(
-      new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.6,  // strength
-        0.4,  // radius
-        0.85  // threshold
-      )
-    );
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.45, 0.85);
+    composer.addPass(bloomPass);
 
-    /* ─── vertical beam geometry ───────────────────────────────── */
-    const geometry = new THREE.CylinderGeometry(0.02, 0.02, 3, 32);
-    const material = new THREE.ShaderMaterial({
+    // Beam geometry & shader
+    const beamMat = new THREE.ShaderMaterial({
       uniforms: {
         time:      { value: 0 },
-        pulse:     { value: 1.0 },
+        pulse:     { value: 1 },
         glowColor: { value: new THREE.Color("#6ed6ff") },
+        gaze:      { value: 1 },
       },
-      vertexShader: `
+      transparent: true,
+      vertexShader: /* glsl */ `
         uniform float time;
         uniform float pulse;
-        varying vec3 vPosition;
+        uniform float gaze;
+        varying vec3  vPos;
         void main() {
-          vPosition = position;
-          vec3 pos = position;
-
-          /* subtle sway + width scale injected from JS (noise) */
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+          vPos = position;
+          vec3 p = position;
+          // tiny tremor reacts to gaze (stronger when stared at)
+          p.x += sin(time * 3. + position.y * 7.) * 0.01 * pulse * gaze;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
         }
       `,
-      fragmentShader: `
+      fragmentShader: /* glsl */ `
         uniform vec3  glowColor;
         uniform float pulse;
-        varying vec3  vPosition;
+        uniform float gaze;
+        varying vec3  vPos;
         void main() {
-          float intensity = (1.0 - abs(vPosition.y) / 1.5) * pulse;
-          gl_FragColor   = vec4(glowColor * intensity, 1.0);
+          float intensity = (1.0 - abs(vPos.y) / 1.5) * pulse;
+          intensity *= mix(0.4, 1.25, gaze); // dim when averted
+          gl_FragColor = vec4(glowColor * intensity, 1.0);
         }
       `,
-      transparent: true,
     });
-    const beam = new THREE.Mesh(geometry, material);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 3, 48), beamMat);
     scene.add(beam);
 
-    /* ─── faint fog plane ─────────────────────────────────────── */
-    const fog = new THREE.Mesh(
-      new THREE.PlaneGeometry(10, 10),
-      new THREE.MeshBasicMaterial({ color: 0x0b0e1a, transparent: true, opacity: 0.05 })
-    );
+    // Background haze panel (dim with gaze)
+    const fogMat = new THREE.MeshBasicMaterial({ color: 0x0b0e1a, transparent: true, opacity: 0.06 });
+    const fog    = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), fogMat);
     fog.position.z = -2;
     scene.add(fog);
 
-    /* ─── animation loop ──────────────────────────────────────── */
-    const simplex   = new SimplexNoise();
-    let   t         = 0;
-    let   smooth    = getNeedPulse();     // EMA seed
-    const ALPHA     = 0.08;               // smoothing factor
+    // ─────────────────── dynamic state ────────────────────────
+    const simplex  = new SimplexNoise();
+    let   t        = 0;
+    let   smooth   = getNeedPulse();
+    let   gazeFact = 1;            // 0-1 (pointer distance)
 
-    const BREATH_PERIOD = 5.0;            // seconds
-    const HEART_BPM     = 120;
-    const HEART_FREQ    = HEART_BPM / 60; // 2 beats/sec
+    /* pointer-based gaze fallback */
+    const updateGaze = (e) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const cx = rect.left + rect.width  / 2;
+      const cy = rect.top  + rect.height / 2;
+      const dx = (e.clientX - cx) / rect.width;
+      const dy = (e.clientY - cy) / rect.height;
+      const dist = Math.min(1, Math.sqrt(dx*dx + dy*dy) * 1.7); // 0 centre → 1 edge
+      gazeFact = 1 - dist; // 1 when pointer near centre
+    };
+    window.addEventListener("pointermove", updateGaze);
 
+    /* main loop */
     const animate = () => {
-      t += 0.005;
+      t += 0.007; // faster timeline
 
-      /* composite need: breath + heartbeat ---------------------- */
-      const breath = (Math.sin((t / BREATH_PERIOD) * Math.PI * 2 - Math.PI / 2) + 1) / 2;
+      // rhythmic composite
+      const breath = (Math.sin((t / BREATH_PERIOD) * Math.PI * 2) + 1) / 2;
       const heart  = Math.max(0, Math.sin(t * HEART_FREQ * Math.PI * 2));
-      const target = Math.min(1, breath * 0.8 + heart * 0.4);
+      const target = Math.min(1, breath * 0.8 + heart * 0.5);
+      smooth += SMOOTH_ALPHA * (target - smooth);
 
-      smooth = smooth + ALPHA * (target - smooth);     // EMA
+      // uniforms
+      beamMat.uniforms.time.value      = t;
+      beamMat.uniforms.pulse.value     = smooth;
+      beamMat.uniforms.gaze.value      = gazeFact;
+      beamMat.uniforms.glowColor.value.set(getCurrentGlowColor());
 
-      /* feed uniforms ------------------------------------------- */
-      material.uniforms.time.value  = t;
-      material.uniforms.pulse.value = smooth;
-      material.uniforms.glowColor.value.set(getCurrentGlowColor());
+      // position & width
+      const noise  = simplex.noise2D(t * 0.3, 0) * 0.006;
+      beam.scale.set(0.9 + smooth * 0.4, 1, 1);
+      beam.position.x = Math.sin(t * 1.4) * 0.015 + noise;
 
-      /* inject sway & width scale via vertex displacement --------
-         (done in JS because ShaderMaterial needs dynamic geometry) */
-      const sway = Math.sin(t * 1.2) * 0.005;           // left-right sway
-      const noise = simplex.noise2D(t * 0.2, 0) * 0.004; // organic jitter
-      beam.scale.set(0.9 + smooth * 0.2, 1, 1);         // widen with pulse
-      beam.position.x = sway + noise;
+      // bloom strength reacts to gaze + emotion intensity
+      const emotionAmp = getCurrentEmotionIntensity(); // 0-1
+      bloomPass.strength = THREE.MathUtils.lerp(0.35, 1.3, Math.max(gazeFact, emotionAmp));
 
-      /* render */
+      fogMat.opacity = 0.04 + (1 - gazeFact) * 0.06; // darker when not watched
+
       composer.render();
       requestAnimationFrame(animate);
     };
     animate();
 
-    /* ─── responsive canvas ───────────────────────────────────── */
+    // ─────────────────── cleanup ───────────────────────────────
     const onResize = () => {
       renderer.setSize(window.innerWidth, window.innerHeight);
       composer.setSize(window.innerWidth, window.innerHeight);
@@ -133,40 +143,26 @@ export default function StrategyCoreShell() {
     };
     window.addEventListener("resize", onResize);
 
-    /* ─── cleanup ─────────────────────────────────────────────── */
     return () => {
+      window.removeEventListener("pointermove", updateGaze);
       window.removeEventListener("resize", onResize);
       mountRef.current.removeChild(renderer.domElement);
       renderer.dispose();
     };
   }, []);
 
-  /* ─── JSX shell (eyes + UI overlays) ────────────────────────── */
+  // ─────────────────── JSX shell ───────────────────────────────
   return (
     <div
       ref={mountRef}
-      style={{
-        width: "100vw",
-        height: "100vh",
-        background: "#000",
-        overflow: "hidden",
-        position: "relative",
-      }}
+      className="relative w-screen h-screen bg-black overflow-hidden"
     >
-      {/* eyes */}
-      <div
-        style={{
-          position: "absolute",
-          top: 16,
-          left: "50%",
-          transform: "translateX(-50%)",
-          pointerEvents: "none",
-        }}
-      >
+      {/* pupils overlay */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none">
         <GazeEyes />
       </div>
 
-      {/* operator layers */}
+      {/* operator HUD & typing */}
       <TypingPanel />
       <InstitutionalOverlay />
     </div>
