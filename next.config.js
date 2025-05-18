@@ -1,7 +1,9 @@
+// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,      // keep what you already had
   experimental: {
-    appDir: true,          // 👈 turns on the App Router
+    appDir: true,             // 👈  THIS turns on the App Router
   },
 };
 
