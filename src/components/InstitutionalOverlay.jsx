@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   getSelfMutationPressure,
   getShiftLog,
@@ -21,9 +20,9 @@ import { getRecentThoughts } from "../systems/thoughtEngine";
  *   • Non-interactive (pointer-events-none)
  */
 
-const REFRESH_MS = 2_000;           // poll interval
-const MAX_THOUGHTS = 4;             // keep last N thoughts
-const MAX_SHIFTS   = 5;
+const REFRESH_MS = 2_000;
+const MAX_THOUGHTS = 4;
+const MAX_SHIFTS = 5;
 
 const pressureColor = {
   low: "bg-emerald-500",
@@ -33,19 +32,18 @@ const pressureColor = {
 
 export default function InstitutionalOverlay() {
   const [pressure, setPressure] = useState("low");
-  const [thoughts, setThoughts] = useState([]);     // [{id,text}]
-  const [shifts, setShifts] = useState([]);         // [{timestamp,from,to}]
+  const [thoughts, setThoughts] = useState([]);
+  const [shifts, setShifts] = useState([]);
 
   useEffect(() => {
-    // unified fetcher to avoid three separate state updates
     const tick = () => {
       try {
         setPressure(getSelfMutationPressure() || "low");
-        setThoughts((prev) => {
+        setThoughts(() => {
           const next = getRecentThoughts(MAX_THOUGHTS) || [];
           return next.map((t, idx) => ({ ...t, id: `${Date.now()}_${idx}` }));
         });
-        setShifts((prev) => {
+        setShifts(() => {
           const next = (getShiftLog() || []).slice(-MAX_SHIFTS);
           return next.map((s) => ({ ...s, id: s.timestamp }));
         });
@@ -62,10 +60,17 @@ export default function InstitutionalOverlay() {
   return (
     <Card className="pointer-events-none absolute left-4 top-4 w-[36vw] max-w-xs bg-black/60 backdrop-blur-md">
       <CardContent className="p-4 space-y-3 font-mono text-xs text-slate-200">
+
         {/* Mutation Pressure */}
         <div className="flex items-center space-x-2">
           <span className="font-semibold">🧠 Mutation&nbsp;Pressure:</span>
-          <Badge className={`${pressureColor[pressure] || "bg-slate-500"}`}>{pressure}</Badge>
+          <span
+            className={`px-2 py-1 rounded text-white text-xs ${
+              pressureColor[pressure] || "bg-slate-500"
+            }`}
+          >
+            {pressure}
+          </span>
         </div>
 
         {/* Recent Thoughts */}
@@ -97,7 +102,9 @@ export default function InstitutionalOverlay() {
                 className="opacity-50"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.5 }}
-              >— none yet</motion.div>
+              >
+                — none yet
+              </motion.div>
             )}
             {shifts.map((s) => (
               <motion.div
