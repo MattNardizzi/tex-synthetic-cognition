@@ -1,6 +1,6 @@
-// StrategyCoreShell.jsx — Tex visual core layer v5.0
+// StrategyCoreShell.jsx — Tex visual core layer v5.1 (fixed)
 // ------------------------------------------------------------
-// Purpose: Cinematic AGI beam with perfect-black background and live emotion pulse
+// Purpose: Cinematic AGI beam with pure black background and fully functioning shader
 
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -67,8 +67,8 @@ export default function StrategyCoreShell() {
         uniform float pulse;
         varying vec3 vPos;
         void main(){
-          float i = (1. - abs(vPos.y) / ${CFG.beamHeight / 2}.0) * pulse;
-          gl_FragColor = vec4(glowColor * i * 1.6, 1.0); // boosted intensity
+          float i = (1.0 - abs(vPos.y) / 1.1) * pulse;
+          gl_FragColor = vec4(glowColor * i * 1.6, 1.0);
         }
       `,
     });
