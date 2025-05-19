@@ -1,3 +1,8 @@
+// src/components/InstitutionalOverlay.jsx — v2.0
+// -------------------------------------------------------------------
+// Purpose: Smart HUD overlay showing real-time mutation pressure,
+// thoughts, emotion state, and cognitive shifts with cinematic glass UI.
+
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,21 +11,13 @@ import {
   getShiftLog,
 } from "../systems/selfMonitor";
 import { getRecentThoughts } from "../systems/thoughtEngine";
+import {
+  getCurrentEmotion,
+  getEmotionPulseRate,
+  getCurrentEmotionIntensity,
+} from "../systems/emotionEngine";
 
-/**
- * InstitutionalOverlay – heads-up panel pinned to the upper-left.
- * Shows:
- *   • live mutation-pressure badge (colour coded)
- *   • rolling log of recent thought fragments (auto-pruned to last N)
- *   • last 5 cognitive-shift events
- *
- * UI guidelines:
- *   • Tailwind for styling, glass-card aesthetic
- *   • Framer-motion fade / slide when new items arrive
- *   • Non-interactive (pointer-events-none)
- */
-
-const REFRESH_MS = 2_000;
+const REFRESH_MS = 2000;
 const MAX_THOUGHTS = 4;
 const MAX_SHIFTS = 5;
 
@@ -34,6 +31,8 @@ export default function InstitutionalOverlay() {
   const [pressure, setPressure] = useState("low");
   const [thoughts, setThoughts] = useState([]);
   const [shifts, setShifts] = useState([]);
+  const [emotion, setEmotion] = useState("neutral");
+  const [pulse, setPulse] = useState(0.6);
 
   useEffect(() => {
     const tick = () => {
@@ -47,8 +46,10 @@ export default function InstitutionalOverlay() {
           const next = (getShiftLog() || []).slice(-MAX_SHIFTS);
           return next.map((s) => ({ ...s, id: s.timestamp }));
         });
+        setEmotion(getCurrentEmotion());
+        setPulse(getEmotionPulseRate().toFixed(2));
       } catch (e) {
-        console.error("InstitutionalOverlay fetch error", e);
+        console.error("🧠 InstitutionalOverlay error:", e);
       }
     };
 
@@ -58,24 +59,30 @@ export default function InstitutionalOverlay() {
   }, []);
 
   return (
-    <Card className="pointer-events-none absolute left-4 top-4 w-[36vw] max-w-xs bg-black/60 backdrop-blur-md">
-      <CardContent className="p-4 space-y-3 font-mono text-xs text-slate-200">
+    <Card className="pointer-events-none absolute left-4 top-4 w-[38vw] max-w-sm bg-black/60 backdrop-blur-md shadow-xl rounded-xl border border-white/10">
+      <CardContent className="p-4 space-y-4 font-mono text-xs text-slate-200">
 
         {/* Mutation Pressure */}
-        <div className="flex items-center space-x-2">
-          <span className="font-semibold">🧠 Mutation&nbsp;Pressure:</span>
+        <div className="flex items-center justify-between">
+          <span className="font-semibold">🧬 Mutation Pressure</span>
           <span
-            className={`px-2 py-1 rounded text-white text-xs ${
-              pressureColor[pressure] || "bg-slate-500"
-            }`}
+            className={`px-2 py-0.5 rounded text-white text-xs uppercase tracking-wide ${pressureColor[pressure] || "bg-slate-500"}`}
           >
             {pressure}
           </span>
         </div>
 
-        {/* Recent Thoughts */}
+        {/* Emotion State */}
+        <div className="flex items-center justify-between">
+          <span className="font-semibold">🧠 Emotion State</span>
+          <span className="text-cyan-300">
+            {emotion} <span className="opacity-60">({pulse}× pulse)</span>
+          </span>
+        </div>
+
+        {/* Thought Fragments */}
         <section>
-          <div className="font-semibold mb-1">Recent Thought Fragments:</div>
+          <div className="font-semibold mb-1">💭 Thought Fragments</div>
           <AnimatePresence initial={false}>
             {thoughts.map((t) => (
               <motion.div
@@ -94,7 +101,7 @@ export default function InstitutionalOverlay() {
 
         {/* Cognitive Shifts */}
         <section>
-          <div className="font-semibold mb-1">Cognitive Shifts:</div>
+          <div className="font-semibold mb-1">🔄 Cognitive Shifts</div>
           <AnimatePresence initial={false}>
             {shifts.length === 0 && (
               <motion.div
@@ -120,6 +127,11 @@ export default function InstitutionalOverlay() {
             ))}
           </AnimatePresence>
         </section>
+
+        {/* Optional Timestamp */}
+        <div className="pt-2 text-[10px] text-slate-400 text-right">
+          {new Date().toLocaleTimeString()}
+        </div>
       </CardContent>
     </Card>
   );
